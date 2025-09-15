@@ -1,45 +1,21 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import VitalSignCard from './VitalSignCard';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Heart, Thermometer, Activity, Droplet, Brain, Zap, AlertCircle, CheckCircle } from 'lucide-react';
+import { Heart, Thermometer, Activity, Droplet, Brain, Zap, AlertCircle, CheckCircle, Wifi, Battery, Cpu } from 'lucide-react';
+import { useHealthData } from '@/hooks/useHealthData';
 import astronautHero from '@/assets/astronaut-hero.jpg';
 
 const Dashboard: React.FC = () => {
-  const [vitals, setVitals] = useState({
-    heartRate: { value: 72, status: 'normal' as const, trend: 'stable' as const },
-    temperature: { value: 98.6, status: 'normal' as const, trend: 'stable' as const },
-    bloodPressure: { value: '120/80', status: 'normal' as const, trend: 'stable' as const },
-    oxygenSaturation: { value: 98, status: 'normal' as const, trend: 'up' as const },
-    stressLevel: { value: 15, status: 'normal' as const, trend: 'down' as const },
-    activity: { value: 65, status: 'normal' as const, trend: 'up' as const },
-  });
+  const { vitals, fdaAlerts, deviceInfo, isLoading, getVitalStatus } = useHealthData(3000);
 
-  const [alerts] = useState([
-    { id: 1, type: 'info', message: 'Routine health check completed', time: '2 min ago' },
-    { id: 2, type: 'success', message: 'All vital signs within normal range', time: '5 min ago' },
-    { id: 3, type: 'warning', message: 'Reminder: Hydration break in 30 minutes', time: '15 min ago' },
-  ]);
-
-  // Simulate real-time data updates
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setVitals(prev => ({
-        ...prev,
-        heartRate: {
-          ...prev.heartRate,
-          value: 70 + Math.floor(Math.random() * 10),
-        },
-        oxygenSaturation: {
-          ...prev.oxygenSaturation,
-          value: 96 + Math.floor(Math.random() * 4),
-        },
-      }));
-    }, 3000);
-
-    return () => clearInterval(interval);
-  }, []);
+  // Combine FDA alerts with system alerts
+  const systemAlerts = [
+    { id: 'sys1', type: 'info', message: 'Medical device sync completed', time: '1 min ago' },
+    { id: 'sys2', type: 'success', message: 'All systems operational', time: '3 min ago' },
+    ...fdaAlerts.slice(0, 2) // Add recent FDA alerts
+  ];
 
   return (
     <div className="space-y-8">
@@ -67,56 +43,99 @@ const Dashboard: React.FC = () => {
         </div>
       </div>
 
+      {/* Device Status Card */}
+      {deviceInfo && (
+        <Card className="gradient-card border-border/20 backdrop-blur-sm mb-6">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Cpu className="h-5 w-5 text-primary" />
+              Medical Device Status - {deviceInfo.model}
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="flex items-center gap-2">
+                <Battery className="h-4 w-4 text-success" />
+                <span className="text-sm">Battery: {deviceInfo.batteryLevel}%</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <Wifi className="h-4 w-4 text-success" />
+                <span className="text-sm">Signal: {deviceInfo.signalStrength}%</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <CheckCircle className="h-4 w-4 text-success" />
+                <span className="text-sm">Status: Active</span>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Vital Signs Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        <VitalSignCard
-          title="Heart Rate"
-          value={vitals.heartRate.value.toString()}
-          unit="BPM"
-          status={vitals.heartRate.status}
-          icon={Heart}
-          trend={vitals.heartRate.trend}
-        />
-        <VitalSignCard
-          title="Temperature"
-          value={vitals.temperature.value.toFixed(1)}
-          unit="°F"
-          status={vitals.temperature.status}
-          icon={Thermometer}
-          trend={vitals.temperature.trend}
-        />
-        <VitalSignCard
-          title="Blood Pressure"
-          value={vitals.bloodPressure.value}
-          unit="mmHg"
-          status={vitals.bloodPressure.status}
-          icon={Activity}
-          trend={vitals.bloodPressure.trend}
-        />
-        <VitalSignCard
-          title="Oxygen Saturation"
-          value={vitals.oxygenSaturation.value.toString()}
-          unit="%"
-          status={vitals.oxygenSaturation.status}
-          icon={Droplet}
-          trend={vitals.oxygenSaturation.trend}
-        />
-        <VitalSignCard
-          title="Stress Level"
-          value={vitals.stressLevel.value.toString()}
-          unit="%"
-          status={vitals.stressLevel.status}
-          icon={Brain}
-          trend={vitals.stressLevel.trend}
-        />
-        <VitalSignCard
-          title="Activity Level"
-          value={vitals.activity.value.toString()}
-          unit="%"
-          status={vitals.activity.status}
-          icon={Zap}
-          trend={vitals.activity.trend}
-        />
+        {vitals && (
+          <>
+            <VitalSignCard
+              title="Heart Rate"
+              value={vitals.heartRate.value.toString()}
+              unit="BPM"
+              status={getVitalStatus('heartRate', vitals.heartRate.value)}
+              icon={Heart}
+              trend={vitals.heartRate.trend as any}
+              lastUpdate="Live"
+            />
+            <VitalSignCard
+              title="Temperature"
+              value={vitals.temperature.value.toFixed(1)}
+              unit="°F"
+              status={getVitalStatus('temperature', vitals.temperature.value)}
+              icon={Thermometer}
+              trend={vitals.temperature.trend as any}
+              lastUpdate="Live"
+            />
+            <VitalSignCard
+              title="Blood Pressure"
+              value={`${vitals.bloodPressure.systolic}/${vitals.bloodPressure.diastolic}`}
+              unit="mmHg"
+              status={getVitalStatus('heartRate', vitals.bloodPressure.systolic)} 
+              icon={Activity}
+              trend={vitals.bloodPressure.trend as any}
+              lastUpdate="Live"
+            />
+            <VitalSignCard
+              title="Oxygen Saturation"
+              value={vitals.oxygenSaturation.value.toString()}
+              unit="%"
+              status={getVitalStatus('oxygenSaturation', vitals.oxygenSaturation.value)}
+              icon={Droplet}
+              trend={vitals.oxygenSaturation.trend as any}
+              lastUpdate="Live"
+            />
+            <VitalSignCard
+              title="Respiratory Rate"
+              value={vitals.respiratoryRate.value.toString()}
+              unit="BPM"
+              status={getVitalStatus('respiratoryRate', vitals.respiratoryRate.value)}
+              icon={Activity}
+              trend={vitals.respiratoryRate.trend as any}
+              lastUpdate="Live"
+            />
+            <VitalSignCard
+              title="Stress Level"
+              value={vitals.stressLevel.value.toString()}
+              unit="%"
+              status={getVitalStatus('stressLevel', vitals.stressLevel.value)}
+              icon={Brain}
+              trend={vitals.stressLevel.trend as any}
+              lastUpdate="Live"
+            />
+          </>
+        )}
+        {isLoading && (
+          <div className="col-span-full text-center py-8 text-muted-foreground">
+            Loading real-time health data...
+          </div>
+        )}
       </div>
 
       {/* Recent Alerts */}
@@ -129,7 +148,7 @@ const Dashboard: React.FC = () => {
         </CardHeader>
         <CardContent>
           <div className="space-y-3">
-            {alerts.map((alert) => (
+            {systemAlerts.map((alert) => (
               <div key={alert.id} className="flex items-center justify-between p-3 rounded-lg bg-secondary/20 border border-border/10">
                 <div className="flex items-center gap-3">
                   {alert.type === 'success' ? (
@@ -140,6 +159,11 @@ const Dashboard: React.FC = () => {
                     <AlertCircle className="h-4 w-4 text-primary" />
                   )}
                   <span className="text-sm">{alert.message}</span>
+                  {alert.source && (
+                    <Badge variant="secondary" className="text-xs">
+                      {alert.source}
+                    </Badge>
+                  )}
                 </div>
                 <Badge variant="outline" className="text-xs">
                   {alert.time}
