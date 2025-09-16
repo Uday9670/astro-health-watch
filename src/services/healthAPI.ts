@@ -1,104 +1,97 @@
-// Health API Service for real data integration
-export class HealthAPIService {
+class HealthAPIService {
   private static instance: HealthAPIService;
   
-  public static getInstance(): HealthAPIService {
+  static getInstance() {
     if (!HealthAPIService.instance) {
       HealthAPIService.instance = new HealthAPIService();
     }
     return HealthAPIService.instance;
   }
 
-  // OpenFDA API - Public health data (no key required)
+  // FDA Alerts - Real API integration
   async getFDAAlerts() {
     try {
-      const response = await fetch(
-        'https://api.fda.gov/device/recall.json?limit=5'
-      );
+      const response = await fetch('https://api.fda.gov/device/recall.json?limit=5');
       const data = await response.json();
-      return data.results?.map((item: any) => ({
-        id: item.recall_number,
-        type: 'warning',
-        message: `FDA Alert: ${item.product_description?.substring(0, 50)}...`,
-        time: new Date(item.report_date).toLocaleDateString(),
+      
+      return data.results?.map((alert: any) => ({
+        id: alert.recall_number || Math.random().toString(),
+        title: alert.product_description || 'Medical Device Alert',
+        severity: alert.classification === 'Class I' ? 'critical' : 
+                 alert.classification === 'Class II' ? 'warning' : 'info',
+        message: alert.reason_for_recall || 'Device safety alert',
+        timestamp: alert.recall_initiation_date || new Date().toISOString(),
         source: 'FDA'
       })) || [];
     } catch (error) {
-      console.error('FDA API Error:', error);
+      console.error('Failed to fetch FDA alerts:', error);
       return [];
     }
   }
 
-  // Disease.sh API - Global health statistics (no key required)
+  // Global Health Statistics - Real API
   async getGlobalHealthStats() {
     try {
       const response = await fetch('https://disease.sh/v3/covid-19/all');
       const data = await response.json();
+      
       return {
         totalCases: data.cases,
         recovered: data.recovered,
-        lastUpdated: new Date(data.updated).toLocaleDateString()
+        lastUpdated: new Date(data.updated).toLocaleString()
       };
     } catch (error) {
-      console.error('Health Stats API Error:', error);
+      console.error('Failed to fetch global health stats:', error);
       return null;
     }
   }
 
-  // Realistic vital signs simulation based on medical standards
+  // Generate realistic vital signs for space environment
   generateRealisticVitals() {
-    const baseTime = Date.now();
-    const astronautProfile = {
-      age: 35, // Average astronaut age
-      fitness: 'excellent',
-      environment: 'space'
-    };
-
-    // Medical ranges adjusted for space environment
     return {
       heartRate: {
-        value: this.generateVital(65, 85, 2), // Space: slightly lower due to microgravity
-        normal: [60, 90],
+        value: this.generateVital(65, 85, 5), // Slightly elevated for space
+        normal: [60, 100],
         trend: this.calculateTrend(),
-        timestamp: baseTime
+        timestamp: Date.now()
       },
       bloodPressure: {
-        systolic: this.generateVital(110, 130, 3),
-        diastolic: this.generateVital(70, 85, 2),
+        systolic: this.generateVital(110, 140, 8),
+        diastolic: this.generateVital(70, 90, 5),
         trend: this.calculateTrend(),
-        timestamp: baseTime
+        timestamp: Date.now()
       },
       oxygenSaturation: {
-        value: this.generateVital(96, 100, 1),
+        value: this.generateVital(96, 99, 1),
         normal: [95, 100],
         trend: this.calculateTrend(),
-        timestamp: baseTime
+        timestamp: Date.now()
       },
       temperature: {
-        value: this.generateVital(97.8, 99.1, 0.2), // Space: slightly lower core temp
+        value: this.generateVital(97.8, 99.2, 0.3), // Slightly elevated
         normal: [97.0, 99.5],
         trend: this.calculateTrend(),
-        timestamp: baseTime
+        timestamp: Date.now()
       },
       respiratoryRate: {
-        value: this.generateVital(12, 18, 1),
+        value: this.generateVital(14, 20, 2),
         normal: [12, 20],
         trend: this.calculateTrend(),
-        timestamp: baseTime
+        timestamp: Date.now()
       },
       stressLevel: {
-        value: this.generateVital(10, 30, 5), // Mission stress indicators
-        normal: [0, 25],
+        value: this.generateVital(3, 7, 1), // Space stress factor
+        normal: [1, 5],
         trend: this.calculateTrend(),
-        timestamp: baseTime
+        timestamp: Date.now()
       }
     };
   }
 
   private generateVital(min: number, max: number, variance: number): number {
-    const base = min + (max - min) * Math.random();
-    const noise = (Math.random() - 0.5) * variance;
-    return Math.round((base + noise) * 10) / 10;
+    const base = min + Math.random() * (max - min);
+    const variation = (Math.random() - 0.5) * variance;
+    return Math.round((base + variation) * 10) / 10;
   }
 
   private calculateTrend(): 'up' | 'down' | 'stable' {
@@ -108,74 +101,73 @@ export class HealthAPIService {
     return 'stable';
   }
 
-  // Fitbit Web API integration (requires user consent)
+  // Fitbit API integration (demo)
   async connectFitbitAPI(accessToken?: string) {
-    if (!accessToken) {
-      // Return demo data or prompt for connection
-      return {
-        connected: false,
-        demoMode: true,
-        data: this.generateRealisticVitals()
-      };
-    }
-
     try {
+      if (!accessToken) {
+        // Return demo data if no token provided
+        return {
+          heartRate: {
+            value: this.generateVital(68, 78, 3),
+            restingHeartRate: 65,
+            timestamp: new Date().toISOString()
+          }
+        };
+      }
+
+      // Real Fitbit API call would go here
       const response = await fetch('https://api.fitbit.com/1/user/-/activities/heart/date/today/1d.json', {
         headers: {
-          'Authorization': `Bearer ${accessToken}`,
-          'Accept': 'application/json'
+          'Authorization': `Bearer ${accessToken}`
         }
       });
+      
       const data = await response.json();
-      return {
-        connected: true,
-        heartRate: data['activities-heart'][0]?.value?.restingHeartRate || null
-      };
+      return data;
     } catch (error) {
-      console.error('Fitbit API Error:', error);
-      return { connected: false, error: 'Authentication failed' };
+      console.error('Fitbit API error:', error);
+      return null;
     }
   }
 
-  // Medical device simulator (for hackathon demo)
+  // Simulate medical device data
   simulateMedicalDevice() {
     return {
-      deviceId: 'AST-MON-001',
-      manufacturer: 'NASA Medical Systems',
-      model: 'AstronautVital Pro',
-      firmware: '2.1.4',
-      batteryLevel: 87,
-      signalStrength: 95,
+      deviceId: 'MED-SPACE-001',
+      name: 'SpaceMed Pro Monitor',
+      status: 'connected',
+      batteryLevel: Math.floor(Math.random() * 30) + 70, // 70-100%
+      signalStrength: Math.floor(Math.random() * 20) + 80, // 80-100%
       lastSync: new Date().toISOString(),
       sensors: {
-        ecg: { status: 'active', sampleRate: '250Hz' },
-        pulse: { status: 'active', accuracy: '98%' },
-        temperature: { status: 'active', calibrated: true },
-        accelerometer: { status: 'active', sensitivity: 'high' }
+        ecg: 'active',
+        pulseOx: 'active',
+        temperature: 'active',
+        accelerometer: 'active'
       }
     };
   }
 
-  // Emergency scenarios for demo
+  // Emergency scenario simulation
   generateEmergencyScenario() {
     const scenarios = [
       {
-        type: 'critical',
-        vitals: { heartRate: 45, oxygenSaturation: 92 },
-        alert: 'Bradycardia detected - immediate attention required'
+        type: 'cardiac',
+        vitals: { heartRate: 145, oxygenSat: 89 },
+        alert: 'Tachycardia detected - immediate attention required'
       },
       {
-        type: 'warning', 
-        vitals: { temperature: 101.2, heartRate: 105 },
-        alert: 'Elevated temperature and heart rate - monitor closely'
+        type: 'respiratory',
+        vitals: { respiratoryRate: 28, oxygenSat: 91 },
+        alert: 'Respiratory distress - oxygen levels low'
       },
       {
-        type: 'caution',
-        vitals: { stressLevel: 75, respiratoryRate: 25 },
-        alert: 'High stress indicators - recommend wellness check'
+        type: 'thermal',
+        vitals: { bodyTemp: 102.4, heartRate: 110 },
+        alert: 'Hyperthermia detected - cooling protocol initiated'
       }
     ];
-    
+
     return scenarios[Math.floor(Math.random() * scenarios.length)];
   }
 }
